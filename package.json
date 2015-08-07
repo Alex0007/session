@@ -1,11 +1,12 @@
 {
-  "name": "express-session",
+  "name": "express-session-query",
   "version": "1.11.3",
   "description": "Simple session middleware for Express",
   "author": "TJ Holowaychuk <tj@vision-media.ca> (http://tjholowaychuk.com)",
   "contributors": [
     "Douglas Christopher Wilson <doug@somethingdoug.com>",
-    "Joe Wagner <njwjs722@gmail.com>"
+    "Joe Wagner <njwjs722@gmail.com>",
+	"Lukasz Sielski <lukaszsielski@gmail.com>"
   ],
   "repository": "expressjs/session",
   "license": "MIT",

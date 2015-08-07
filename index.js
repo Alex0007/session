@@ -87,6 +87,7 @@ function session(options){
     , name = options.name || options.key || 'connect.sid'
     , store = options.store || new MemoryStore
     , cookie = options.cookie || {}
+    , queryName = options.query || false
     , trustProxy = options.proxy
     , storeReady = true
     , rollingSessions = options.rolling || false;
@@ -177,6 +178,10 @@ function session(options){
 
     // get the session ID from the cookie
     var cookieId = req.sessionID = getcookie(req, name, secrets);
+
+    if((!cookieId || cookieId.length === 0) && queryName) {
+       cookieId = req.query[queryName];
+    }
 
     // set-cookie
     onHeaders(res, function(){
