@@ -8,7 +8,7 @@
     "Joe Wagner <njwjs722@gmail.com>",
 	"Lukasz Sielski <lukaszsielski@gmail.com>"
   ],
-  "repository": "expressjs/session",
+  "repository": "sielay/session",
   "license": "MIT",
   "dependencies": {
     "cookie": "0.1.3",
