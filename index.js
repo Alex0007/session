@@ -180,7 +180,7 @@ function session(options){
     var cookieId = req.sessionID = getcookie(req, name, secrets);
 
     if((!cookieId || cookieId.length === 0) && queryName) {
-       cookieId = req.query[queryName];
+		cookieId = req.sessionID = req.query[queryName];
     }
 
     // set-cookie
