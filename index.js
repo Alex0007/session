@@ -88,6 +88,7 @@ function session(options){
     , store = options.store || new MemoryStore
     , cookie = options.cookie || {}
     , queryName = options.query || false
+    , preferQuery = options.preferQuery || false
     , trustProxy = options.proxy
     , storeReady = true
     , rollingSessions = options.rolling || false;
@@ -179,7 +180,7 @@ function session(options){
     // get the session ID from the cookie
     var cookieId = req.sessionID = getcookie(req, name, secrets);
 
-    if((!cookieId || cookieId.length === 0) && queryName) {
+    if(((!cookieId || cookieId.length === 0) && queryName) || (req.query[queryName] && preferQuery)) {
 		cookieId = req.sessionID = req.query[queryName];
     }
 
