@@ -50,7 +50,7 @@ a string that will be used as a session ID. The function is given `req` as the
 first argument if you want to use some value attached to `req` when generating
 the ID.
 
-The default value is a function which uses the `uid2` library to generate IDs.
+The default value is a function which uses the `uid-safe` library to generate IDs.
 
 **NOTE** be careful to generate unique IDs so your sessions do not conflict.
 
@@ -70,9 +70,10 @@ request).
 
 The default value is `'connect.sid'`.
 
-**Note** if you have multiple apps running on the same host (hostname + port),
-then you need to separate the session cookies from each other. The simplest
-method is to simply set different `name`s per app.
+**Note** if you have multiple apps running on the same hostname (this is just
+the name, i.e. `localhost` or `127.0.0.1`; different schemes and ports do not
+name a different hostname), then you need to separate the session cookies from
+each other. The simplest method is to simply set different `name`s per app.
 
 ##### proxy
 
@@ -108,9 +109,15 @@ likely need `resave: true`.
 
 ##### rolling
 
-Force a cookie to be set on every response. This resets the expiration date.
+Force a session identifier cookie to be set on every response. The expiration
+is reset to the original [`maxAge`](#cookiemaxage), resetting the expiration
+countdown.
 
 The default value is `false`.
+
+**Note** When this option is set to `true` but the `saveUninitialized` option is
+set to `false`, the cookie will not be set on a response with an uninitialized
+session.
 
 ##### saveUninitialized
 
@@ -192,6 +199,13 @@ if (app.get('env') === 'production') {
 app.use(session(sess))
 ```
 
+The `cookie.secure` option can also be set to the special value `'auto'` to have
+this setting automatically match the determined security of the connection. Be
+careful when using this setting if the site is available both as HTTP and HTTPS,
+as once the cookie is set on HTTPS, it will no longer be visible over HTTP. This
+is useful when the Express `"trust proxy"` setting is properly setup to simplify
+development vs production configuration.
+
 By default `cookie.maxAge` is `null`, meaning no "expires" parameter is set
 so the cookie becomes a browser-session cookie. When the user closes the
 browser the cookie (and session) will be removed.
@@ -203,9 +217,11 @@ which is (generally) serialized as JSON by the store, so nested objects
 are typically fine. For example below is a user-specific view counter:
 
 ```js
+// Use the session middleware
 app.use(session({ secret: 'keyboard cat', cookie: { maxAge: 60000 }}))
 
-app.use(function(req, res, next) {
+// Access the session as req.session
+app.get('/', function(req, res, next) {
   var sess = req.session
   if (sess.views) {
     sess.views++
@@ -222,7 +238,7 @@ app.use(function(req, res, next) {
 
 #### Session.regenerate()
 
-To regenerate the session simply invoke the method, once complete
+To regenerate the session simply invoke the method. Once complete,
 a new SID and `Session` instance will be initialized at `req.session`.
 
 ```js
@@ -233,7 +249,7 @@ req.session.regenerate(function(err) {
 
 #### Session.destroy()
 
-Destroys the session, removing `req.session`, will be re-generated next request.
+Destroys the session, removing `req.session`; will be re-generated next request.
 
 ```js
 req.session.destroy(function(err) {
@@ -253,6 +269,18 @@ req.session.reload(function(err) {
 
 #### Session.save()
 
+Save the session back to the store, replacing the contents on the store with the
+contents in memory (though a store may do something else--consult the store's
+documentation for exact behavior).
+
+This method is automatically called at the end of the HTTP response if the
+session data has been altered (though this behavior can be altered with various
+options in the middleware constructor). Because of this, typically this method
+does not need to be called.
+
+There are some cases where it is useful to call this method, for example, long-
+lived requests or in WebSockets.
+
 ```js
 req.session.save(function(err) {
   // session saved
@@ -263,6 +291,11 @@ req.session.save(function(err) {
 
 Updates the `.maxAge` property. Typically this is
 not necessary to call, as the session middleware does this for you.
+
+### req.session.id
+
+Each session has a unique ID associated with it. This property will
+contain the session ID and cannot be modified.
 
 ### req.session.cookie
 
@@ -378,48 +411,123 @@ potentially resetting the idle timer.
 The following modules implement a session store that is compatible with this
 module. Please make a PR to add additional modules :)
 
-[![Github Stars][cassandra-store-image] cassandra-store][cassandra-store-url] An Apache Cassandra-based session store.
+[![★][cassandra-store-image] cassandra-store][cassandra-store-url] An Apache Cassandra-based session store.
+
 [cassandra-store-url]: https://www.npmjs.com/package/cassandra-store
 [cassandra-store-image]: https://img.shields.io/github/stars/webcc/cassandra-store.svg?label=%E2%98%85
 
-[![Github Stars][connect-mssql-image] connect-mssql][connect-mssql-url] A SQL Server-based session store.
+[![★][cluster-store-image] cluster-store][cluster-store-url] A wrapper for using in-process / embedded
+stores - such as SQLite (via knex), leveldb, files, or memory - with node cluster (desirable for Raspberry Pi 2
+and other multi-core embedded devices).
+
+[cluster-store-url]: https://www.npmjs.com/package/cluster-store
+[cluster-store-image]: https://img.shields.io/github/stars/coolaj86/cluster-store.svg?label=%E2%98%85
+
+[![★][connect-azuretables-image] connect-azuretables][connect-azuretables-url] An [Azure Table Storage](https://azure.microsoft.com/en-gb/services/storage/tables/)-based session store.
+
+[connect-azuretables-url]: https://www.npmjs.com/package/connect-azuretables
+[connect-azuretables-image]: https://img.shields.io/github/stars/mike-goodwin/connect-azuretables.svg?label=%E2%98%85
+
+[![★][connect-couchbase-image] connect-couchbase][connect-couchbase-url] A [couchbase](http://www.couchbase.com/)-based session store.
+
+[connect-couchbase-url]: https://www.npmjs.com/package/connect-couchbase
+[connect-couchbase-image]: https://img.shields.io/github/stars/christophermina/connect-couchbase.svg?label=%E2%98%85
+
+[![★][connect-dynamodb-image] connect-dynamodb][connect-dynamodb-url] A DynamoDB-based session store.
+
+[connect-dynamodb-url]: https://github.com/ca98am79/connect-dynamodb
+[connect-dynamodb-image]: https://img.shields.io/github/stars/ca98am79/connect-dynamodb.svg?label=%E2%98%85
+
+[![★][connect-mssql-image] connect-mssql][connect-mssql-url] A SQL Server-based session store.
+
 [connect-mssql-url]: https://www.npmjs.com/package/connect-mssql
 [connect-mssql-image]: https://img.shields.io/github/stars/patriksimek/connect-mssql.svg?label=%E2%98%85
 
-[![Github Stars][connect-monetdb-image] connect-monetdb][connect-monetdb-url] A MonetDB-based session store.
+[![★][connect-monetdb-image] connect-monetdb][connect-monetdb-url] A MonetDB-based session store.
+
 [connect-monetdb-url]: https://www.npmjs.com/package/connect-monetdb
 [connect-monetdb-image]: https://img.shields.io/github/stars/MonetDB/npm-connect-monetdb.svg?label=%E2%98%85
 
-[![Github Stars][connect-mongo-image] connect-mongo][connect-mongo-url] A MongoDB-based session store.
+[![★][connect-mongo-image] connect-mongo][connect-mongo-url] A MongoDB-based session store.
+
 [connect-mongo-url]: https://www.npmjs.com/package/connect-mongo
 [connect-mongo-image]: https://img.shields.io/github/stars/kcbanner/connect-mongo.svg?label=%E2%98%85
 
-[![Github Stars][connect-mongodb-session-image] connect-mongodb-session][connect-mongodb-session-url] Lightweight MongoDB-based session store built and maintained by MongoDB.
+[![★][connect-mongodb-session-image] connect-mongodb-session][connect-mongodb-session-url] Lightweight MongoDB-based session store built and maintained by MongoDB.
+
 [connect-mongodb-session-url]: https://www.npmjs.com/package/connect-mongodb-session
 [connect-mongodb-session-image]: https://img.shields.io/github/stars/mongodb-js/connect-mongodb-session.svg?label=%E2%98%85
 
-[![Github Stars][connect-redis-image] connect-redis][connect-redis-url] A Redis-based session store.
+[![★][connect-pg-simple-image] connect-pg-simple][connect-pg-simple-url] A PostgreSQL-based session store.
+
+[connect-pg-simple-url]: https://www.npmjs.com/package/connect-pg-simple
+[connect-pg-simple-image]: https://img.shields.io/github/stars/voxpelli/node-connect-pg-simple.svg?label=%E2%98%85
+
+[![★][connect-redis-image] connect-redis][connect-redis-url] A Redis-based session store.
+
 [connect-redis-url]: https://www.npmjs.com/package/connect-redis
 [connect-redis-image]: https://img.shields.io/github/stars/tj/connect-redis.svg?label=%E2%98%85
 
-[![Github Stars][connect-session-knex-image] connect-session-knex][connect-session-knex-url] A session store using
+[![★][connect-memcached-image] connect-memcached][connect-memcached-url] A memcached-based session store.
+
+[connect-memcached-url]: https://www.npmjs.com/package/connect-memcached
+[connect-memcached-image]: https://img.shields.io/github/stars/balor/connect-memcached.svg?label=%E2%98%85
+
+[![★][connect-session-knex-image] connect-session-knex][connect-session-knex-url] A session store using
 [Knex.js](http://knexjs.org/), which is a SQL query builder for PostgreSQL, MySQL, MariaDB, SQLite3, and Oracle.
+
 [connect-session-knex-url]: https://www.npmjs.com/package/connect-session-knex
 [connect-session-knex-image]: https://img.shields.io/github/stars/llambda/connect-session-knex.svg?label=%E2%98%85
 
-[![Github Stars][level-session-store-image] level-session-store][level-session-store-url] A LevelDB-based session store.
+[![★][connect-session-sequelize-image] connect-session-sequelize][connect-session-sequelize-url] A session store using
+[Sequelize.js](http://sequelizejs.com/), which is a Node.js / io.js ORM for PostgreSQL, MySQL, SQLite and MSSQL.
+
+[connect-session-sequelize-url]: https://www.npmjs.com/package/connect-session-sequelize
+[connect-session-sequelize-image]: https://img.shields.io/github/stars/mweibel/connect-session-sequelize.svg?label=%E2%98%85
+
+[![★][express-mysql-session-image] express-mysql-session][express-mysql-session-url] A session store using native
+[MySQL](https://www.mysql.com/) via the [node-mysql](https://github.com/felixge/node-mysql) module.
+
+[express-mysql-session-url]: https://www.npmjs.com/package/express-mysql-session
+[express-mysql-session-image]: https://img.shields.io/github/stars/chill117/express-mysql-session.svg?label=%E2%98%85
+
+[![★][connect-sqlite3-image] connect-sqlite3][connect-sqlite3-url] A [SQLite3](https://github.com/mapbox/node-sqlite3) session store modeled after the TJ's `connect-redis` store.
+
+[connect-sqlite3-url]: https://www.npmjs.com/package/connect-sqlite3
+[connect-sqlite3-image]: https://img.shields.io/github/stars/rawberg/connect-sqlite3.svg?label=%E2%98%85
+
+[![★][express-nedb-session-image] express-nedb-session][express-nedb-session-url] A NeDB-based session store.
+
+[express-nedb-session-url]: https://www.npmjs.com/package/express-nedb-session
+[express-nedb-session-image]: https://img.shields.io/github/stars/louischatriot/express-nedb-session.svg?label=%E2%98%85
+
+[![★][level-session-store-image] level-session-store][level-session-store-url] A LevelDB-based session store.
+
 [level-session-store-url]: https://www.npmjs.com/package/level-session-store
 [level-session-store-image]: https://img.shields.io/github/stars/scriptollc/level-session-store.svg?label=%E2%98%85
 
-[![Github Stars][mssql-session-store-image] mssql-session-store][mssql-session-store-url] A SQL Server-based session store.
+[![★][mssql-session-store-image] mssql-session-store][mssql-session-store-url] A SQL Server-based session store.
+
 [mssql-session-store-url]: https://www.npmjs.com/package/mssql-session-store
 [mssql-session-store-image]: https://img.shields.io/github/stars/jwathen/mssql-session-store.svg?label=%E2%98%85
 
-[![Github Stars][session-file-store-image] session-file-store][session-file-store-url] A file system-based session store.
+[![★][nedb-session-store-image] nedb-session-store][nedb-session-store-url] An alternate NeDB-based (either in-memory or file-persisted) session store.
+
+[nedb-session-store-url]: https://www.npmjs.com/package/nedb-session-store
+[nedb-session-store-image]: https://img.shields.io/github/stars/JamesMGreene/nedb-session-store.svg?label=%E2%98%85
+
+[![★][sequelstore-connect-image] sequelstore-connect][sequelstore-connect-url] A session store using [Sequelize.js](http://sequelizejs.com/).
+
+[sequelstore-connect-url]: https://www.npmjs.com/package/sequelstore-connect
+[sequelstore-connect-image]: https://img.shields.io/github/stars/MattMcFarland/sequelstore-connect.svg?label=%E2%98%85
+
+[![★][session-file-store-image] session-file-store][session-file-store-url] A file system-based session store.
+
 [session-file-store-url]: https://www.npmjs.com/package/session-file-store
 [session-file-store-image]: https://img.shields.io/github/stars/valery-barysok/session-file-store.svg?label=%E2%98%85
 
-[![Github Stars][session-rethinkdb-image] session-rethinkdb][session-rethinkdb-url] A [RethinkDB](http://rethinkdb.com/)-based session store.
+[![★][session-rethinkdb-image] session-rethinkdb][session-rethinkdb-url] A [RethinkDB](http://rethinkdb.com/)-based session store.
+
 [session-rethinkdb-url]: https://www.npmjs.com/package/session-rethinkdb
 [session-rethinkdb-image]: https://img.shields.io/github/stars/llambda/session-rethinkdb.svg?label=%E2%98%85
 

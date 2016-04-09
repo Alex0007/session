@@ -6,6 +6,8 @@
  * MIT Licensed
  */
 
+'use strict';
+
 /**
  * Module dependencies.
  * @private
@@ -92,6 +94,7 @@ function session(options){
     , trustProxy = options.proxy
     , storeReady = true
     , rollingSessions = options.rolling || false;
+  var cookieOptions = options.cookie || {};
   var resaveSession = options.resave;
   var saveUninitializedSession = options.saveUninitialized;
   var secret = options.secret;
@@ -141,7 +144,11 @@ function session(options){
   store.generate = function(req){
     req.sessionID = generateId(req);
     req.session = new Session(req);
-    req.session.cookie = new Cookie(cookie);
+    req.session.cookie = new Cookie(cookieOptions);
+
+    if (cookieOptions.secure === 'auto') {
+      req.session.cookie.secure = issecure(req, trustProxy);
+    }
   };
 
   var storeImplementsTouch = typeof store.touch === 'function';
@@ -158,7 +165,7 @@ function session(options){
 
     // pathname mismatch
     var originalPath = parseUrl.original(req).pathname;
-    if (0 != originalPath.indexOf(cookie.path || '/')) return next();
+    if (originalPath.indexOf(cookieOptions.path || '/') !== 0) return next();
 
     // ensure a secret is available or bail
     if (!secret && !req.secret) {
@@ -387,14 +394,9 @@ function session(options){
         return false;
       }
 
-      // in case of rolling session, always reset the cookie
-      if (rollingSessions) {
-        return true;
-      }
-
       return cookieId != req.sessionID
         ? saveUninitializedSession || isModified(req.session)
-        : req.session.cookie.expires != null && isModified(req.session);
+        : rollingSessions || req.session.cookie.expires != null && isModified(req.session);
     }
 
     // generate a session if the browser doesn't send a sessionID
